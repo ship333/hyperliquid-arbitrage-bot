@@ -1,0 +1,27 @@
+[
+  {
+    "id": "74336e08-00a1-4cf8-b409-577d594acf4d",
+    "name": "Auto triangular 2025-08-12T02:40:46.666Z",
+    "kind": "triangular",
+    "params": {},
+    "status": "approved",
+    "tags": [],
+    "approvals": [
+      {
+        "at": 1754966446728,
+        "status": "approved",
+        "coverageHours": 26,
+        "metrics": {
+          "evAdjUsd": 10,
+          "pSuccess": 0.8,
+          "maxDrawdown": 0,
+          "hitRate": 0.75,
+          "pnlUsd": 100,
+          "samples": 1000
+        }
+      }
+    ],
+    "createdAt": 1754966446705,
+    "updatedAt": 1754966446729
+  }
+]

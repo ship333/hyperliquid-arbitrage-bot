@@ -1,0 +1,20 @@
+{
+  "min_profit_usd": 5.0,
+  "min_spread_bps": 10.0,
+  "min_liquidity_usd": 10000.0,
+  "max_position_eth": 1.0,
+  "risk_level": 5,
+  "slippage_bps": 30.0,
+  "gas_multiplier": 1.0,
+  "fees_bps": 5.0,
+  "max_trade_usd": 50000.0,
+  "chain_name": "hyperevm-mainnet",
+  "default_gas_limit": 250000,
+  "assets": [
+    "ETH",
+    "HYPE"
+  ],
+  "run_duration_sec": 3600,
+  "target_profit_bps_min": 50.0,
+  "target_profit_bps_max": 500.0
+}

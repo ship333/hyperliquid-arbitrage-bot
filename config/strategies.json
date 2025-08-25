@@ -1,0 +1,79 @@
+{
+  "baseline": {
+    "min_profit_usd": 5.0,
+    "min_spread_bps": 10.0,
+    "min_liquidity_usd": 10000.0,
+    "slippage_bps": 30.0,
+    "gas_multiplier": 1.0
+  },
+  "HYPE_to_KHYPE": {
+    "min_profit_usd": 8.0,
+    "min_spread_bps": 12.0,
+    "min_liquidity_usd": 15000.0,
+    "fees_bps": 6.0,
+    "slippage_bps": 20.0,
+    "include_assets": [
+      "wstHYPE",
+      "HYPE",
+      "stHYPE",
+      "KHYPE"
+    ],
+    "include_routes_contains": [
+      "KHYPE"
+    ],
+    "include_chain_names": [
+      "eth-mainnet",
+      "hyperevm-mainnet"
+    ],
+    "note": "Focus HYPE family conversions that end in KHYPE on HyperEVM"
+  },
+  "ETH_multichain_to_HyperEVM": {
+    "min_profit_usd": 10.0,
+    "min_spread_bps": 10.0,
+    "min_liquidity_usd": 20000.0,
+    "fees_bps": 5.0,
+    "slippage_bps": 18.0,
+    "include_assets": [
+      "ETH",
+      "uETH"
+    ],
+    "include_routes_contains": [
+      "HyperEVM",
+      "uETH"
+    ],
+    "include_chain_names": [
+      "eth-mainnet",
+      "arbitrum-mainnet",
+      "optimism-mainnet",
+      "polygon-mainnet",
+      "hyperevm-mainnet"
+    ],
+    "note": "Seek cross-chain ETH arbitrage that settles on HyperEVM and direct uETH opps on HyperEVM"
+  },
+  "auto_high_spread": {
+    "min_profit_usd": 5.0,
+    "min_spread_bps": 28.44,
+    "min_liquidity_usd": 98274.89,
+    "include_assets": [
+      "PRJX",
+      "USDC"
+    ],
+    "include_chain_names": [
+      "hyperevm-mainnet"
+    ],
+    "note": "Auto: favor higher spread opps from last 30m"
+  },
+  "auto_liquidity_focus": {
+    "min_profit_usd": 8.0,
+    "min_spread_bps": 10.0,
+    "min_liquidity_usd": 122843.61,
+    "include_assets": [
+      "PRJX",
+      "USDC"
+    ],
+    "include_chain_names": [
+      "hyperevm-mainnet"
+    ],
+    "note": "Auto: prioritize higher-liquidity routes"
+  }
+}
