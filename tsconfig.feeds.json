@@ -1,0 +1,17 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "target": "ES2020",
+    "module": "commonjs",
+    "lib": ["ES2020", "DOM"],
+    "esModuleInterop": true,
+    "downlevelIteration": true,
+    "skipLibCheck": true
+  },
+  "include": [
+    "src/feeds/SignalGenerator.ts",
+    "src/feeds/index.ts"
+  ],
+  "exclude": []
+}

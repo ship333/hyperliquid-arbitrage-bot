@@ -1,0 +1,17 @@
+{
+    "max_capital": 1000000,
+    "risk_free_rate": 0.05,
+    "slippage_model": "volume_weighted",
+    "fee_structure": {
+        "exchange": 0.001,
+        "router": 0.0005,
+        "protocol": 0.0002
+    },
+    "flash_loan_params": {
+        "base_fee": 10,
+        "variable_fee_bps": 5,
+        "base_gas_cost": 0.001
+    },
+    "risk_aversion": 0.7,
+    "cache_dir": "./market_data_cache"
+}
