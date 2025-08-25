@@ -1,0 +1,430 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Hyperliquid Arbitrage Bot</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+</head>
+<body>
+  <div class="dashboard">
+    <div class="card">
+      <h3>Performance</h3>
+      <div id="daily-pnl">Daily P&L: <span class="status-green">+$0.00</span></div>
+      <div id="total-trades">Total Trades: 0</div>
+      <div id="success-rate">Success Rate: 0.0%</div>
+    </div>
+    <div class="card">
+      <h3>Goldsky Pool Snapshot</h3>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="text" id="goldsky-pool-id" placeholder="pool_id" style="width:300px;" />
+        <input type="number" id="goldsky-limit" value="500" min="1" max="5000" style="width:120px;" />
+        <button id="btn-goldsky-pool">Fetch</button>
+        <span id="goldsky-status">-</span>
+      </div>
+      <div id="goldsky-preview" style="font-size:12px; white-space:pre-wrap; margin-top:6px; max-height:160px; overflow:auto;"></div>
+    </div>
+    <div class="card">
+      <h3>Realtime & Config</h3>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <label>Backend:</label>
+        <input type="text" id="backend-input" value="http://127.0.0.1:9011" style="width:260px;" />
+        <button id="backend-apply">Apply</button>
+        <button id="backend-detect" title="Auto-detect backend">Detect</button>
+        <span id="backend-status" class="badge status-red">Backend: Unreachable</span>
+        <span id="ws-status" class="badge">WS: -</span>
+      </div>
+      <div id="engine-status">Engine: -</div>
+      <div id="chain-name">Chain: -</div>
+      <div style="margin-top:6px;">
+        <label>Gas Price (USD est):</label>
+        <button id="btn-gas-price">Fetch</button>
+        <span id="gas-price-usd">-</span>
+        <input type="text" id="gas-chain" placeholder="hyperevm-mainnet" style="width:160px;margin-left:8px;" />
+      </div>
+      <div style="margin-top:6px;">
+        <label>Base Fee EMA (gwei):</label>
+        <button id="btn-base-fee-ema" title="Fetch EMA from backend">Fetch</button>
+        <span id="base-fee-ema">-</span>
+      </div>
+      <div style="margin-top:6px;display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="copy-config-to-overrides">Copy live config to overrides</button>
+        <button id="refresh-strategies">Refresh strategies</button>
+      </div>
+      <div id="errors" class="errors" style="display:none;"></div>
+      <div id="config-preview" style="margin-top:8px; font-size: 12px; white-space: pre-wrap;"></div>
+    </div>
+    <div class="card">
+      <h3>Active Opportunities</h3>
+      <div style="display:flex; gap:12px; align-items:center; margin-bottom:6px; flex-wrap: wrap;">
+        <label><input type="checkbox" id="opp-pause" /> Pause live updates</label>
+        <button id="opp-clear">Clear List</button>
+        <label>Show top:</label>
+        <input type="number" id="opp-limit" value="20" min="1" max="200" style="width:80px;" />
+        <small>Rows remain; only prices/spread/profit update in-place.</small>
+      </div>
+      <div id="opp-filters" style="display:flex; gap:8px; align-items:end; flex-wrap:wrap; margin-bottom:8px;">
+        <div>
+          <label>Assets</label>
+          <input type="text" id="flt-assets" placeholder="HYPE,KHYPE,uETH" style="width:180px;" />
+        </div>
+        <div>
+          <label>Routes</label>
+          <input type="text" id="flt-routes" placeholder="router,amm,rfq" style="width:160px;" />
+        </div>
+        <div>
+          <label>Chains</label>
+          <input type="text" id="flt-chains" placeholder="hyperevm-mainnet" style="width:170px;" />
+        </div>
+        <div>
+          <label>Min Spread (bps)</label>
+          <input type="number" id="flt-min-spread" step="0.1" value="0" style="width:120px;" />
+        </div>
+        <div>
+          <label>Min Liquidity ($)</label>
+          <input type="number" id="flt-min-liq" step="100" value="0" style="width:140px;" />
+        </div>
+        <div>
+          <label>Min Net Profit ($)</label>
+          <input type="number" id="flt-min-net" step="0.01" value="0" style="width:130px;" />
+        </div>
+        <div>
+          <label>Sort by</label>
+          <select id="opp-sort">
+            <option value="est_profit_usd">Gross Profit</option>
+            <option value="profit_net_usd">Net Profit</option>
+            <option value="profit_per_gas">Profit/Gas</option>
+            <option value="spread_bps">Spread</option>
+            <option value="liquidity_usd">Liquidity</option>
+          </select>
+        </div>
+        <button id="flt-apply">Apply</button>
+        <button id="flt-clear">Clear</button>
+      </div>
+      <div style="overflow:auto;">
+        <table id="opp-table" class="grid">
+          <thead>
+            <tr>
+              <th data-sort="pair">Pair</th>
+              <th data-sort="spread_bps">Spread (bps)</th>
+              <th data-sort="liquidity_usd">Liquidity (USD)</th>
+              <th data-sort="est_profit_usd">Profit (gross)</th>
+              <th data-sort="profit_net_usd">Profit (net)</th>
+              <th data-sort="profit_per_gas">Profit/Gas</th>
+              <th data-sort="confidence">Conf.</th>
+              <th data-sort="route">Route</th>
+              <th data-sort="chain_name">Chain</th>
+              <th data-sort="ts">Time</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="opp-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Bot Controls</h3>
+      <button id="start-bot">Start Bot</button>
+      <button id="emergency-stop">Emergency Stop</button>
+      <input type="range" id="risk-level" min="1" max="10" value="5">
+      <label>Risk Level: <span id="risk-value">5</span></label>
+    </div>
+    <div class="card">
+      <h3>Backtest Options</h3>
+      <div style="display:flex; gap:12px; align-items:center; flex-wrap:wrap;">
+        <label><input type="checkbox" id="bt-use-numpy" /> Use numpy/scipy evaluator</label>
+        <label>Gas budget ($): <input type="number" id="bt-gas-budget" step="1" min="0" placeholder="e.g. 200" style="width:120px;" /></label>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Configuration</h3>
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; align-items:end;">
+        <div>
+          <label>Assets (comma-separated)</label>
+          <input type="text" id="cfg-assets" placeholder="HYPE,KHYPE,uETH" />
+        </div>
+        <div>
+          <label>Run Time (minutes)</label>
+          <input type="number" id="cfg-run-minutes" min="1" step="1" value="60" />
+        </div>
+        <div>
+          <label>Profitability Range Min (%)</label>
+          <input type="number" id="cfg-profit-min" step="0.1" value="0.5" />
+        </div>
+        <div>
+          <label>Profitability Range Max (%)</label>
+          <input type="number" id="cfg-profit-max" step="0.1" value="5.0" />
+        </div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:16px; flex-wrap:wrap;">
+        <div>
+          <h4>Allowed Route Types</h4>
+          <label><input type="checkbox" class="rt-chk" id="rt-router" value="router" /> Router</label>
+          <label><input type="checkbox" class="rt-chk" id="rt-amm" value="amm" /> AMM</label>
+          <label><input type="checkbox" class="rt-chk" id="rt-rfq" value="rfq" /> RFQ</label>
+          <label><input type="checkbox" class="rt-chk" id="rt-bridge" value="bridge" /> Bridge</label>
+        </div>
+      </div>
+      <div style="margin-top:10px;">
+        <h4>Asset Overrides</h4>
+        <div style="margin-bottom:6px; display:flex; gap:8px;">
+          <button id="add-asset-ovr">Add Row</button>
+          <button id="clear-asset-ovr">Clear</button>
+        </div>
+        <div style="overflow:auto;">
+          <table class="grid" style="min-width:800px;">
+            <thead>
+              <tr>
+                <th>Asset</th>
+                <th>Min Spread (bps)</th>
+                <th>Min Liquidity ($)</th>
+                <th>Max Trade ($)</th>
+                <th>Slippage (bps)</th>
+                <th>Fees (bps)</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="asset-ovr-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div style="margin-top:10px; display:flex; gap:8px; flex-wrap:wrap;">
+        <button id="update-config">Save Config</button>
+        <button id="start-bot">Start Bot</button>
+        <button id="emergency-stop">Emergency Stop</button>
+        <span id="run-countdown" class="badge">--:--</span>
+      </div>
+      <hr />
+      <h4>Run an Uploaded Strategy</h4>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+        <input type="file" id="strategy-file" accept="application/json" />
+        <button id="upload-strategy">Upload Strategy</button>
+        <label>Strategy:</label>
+        <select id="run-strategy-select"></select>
+        <button id="run-strategy">Run Strategy</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Strategies</h3>
+      <div>
+        <label>Strategy Name:</label>
+        <input type="text" id="strategy-name" placeholder="baseline" />
+      </div>
+      <div>
+        <label>Parameters (JSON):</label>
+        <textarea id="strategy-params" rows="6" placeholder='{"min_profit_usd":7.5, "min_spread_bps":12, "min_liquidity_usd":20000}'></textarea>
+      </div>
+      <div>
+        <button id="save-strategy">Save/Update Strategy</button>
+      </div>
+      <div>
+        <h4>Existing Strategies</h4>
+        <select id="strategy-select"></select>
+        <button id="load-strategy">Load</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>Backtesting</h3>
+      <div>
+        <label>Strategy:</label>
+        <select id="backtest-strategy"></select>
+      </div>
+      <div>
+        <label>Window (minutes):</label>
+        <input type="number" id="backtest-window" value="60" min="5" step="5" />
+      </div>
+      <div id="backtest-current" style="margin-top:6px;">
+        <strong>Current strategies:</strong>
+        <span id="current-strategies">-</span>
+      </div>
+      <div id="backtest-history-wrap" style="margin-top:6px;">
+        <strong>Recent runs:</strong>
+        <ul id="backtest-history" style="margin:4px 0 0 0; padding-left:18px;"></ul>
+        <button id="clear-backtest-history" type="button" class="btn-sm">Clear History</button>
+      </div>
+      <div style="margin-top:6px;">
+        <h4>Filters</h4>
+        <label>Assets (comma-separated):</label>
+        <input type="text" id="filter-assets" placeholder="HYPE,KHYPE,uETH" />
+        <label>Routes (comma-separated):</label>
+        <input type="text" id="filter-routes" placeholder="router:..., token:..." />
+        <label>Chains (comma-separated):</label>
+        <input type="text" id="filter-chains" placeholder="hyperevm-mainnet" />
+        <label>Min Confidence (0-1):</label>
+        <input type="number" id="filter-min-confidence" placeholder="0.7" step="0.01" min="0" max="1" />
+        <label>Exclude Routes Contains</label>
+        <input type="text" id="filter-exclude-routes" placeholder="uniswap,bridgeX" />
+      </div>
+      <div style="margin-top:6px;">
+        <h4>Presets</h4>
+        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+          <button id="preset-hype-ueth">HYPE/uETH</button>
+          <button id="preset-hype-khype">HYPE/KHYPE</button>
+          <button id="preset-hype-wsthype">HYPE/wstHYPE</button>
+          <button id="preset-clear-filters">Clear Filters</button>
+        </div>
+        <div style="margin-top:6px; display:grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap:8px;">
+          <div>
+            <strong>Route Presets</strong><br/>
+            <button id="preset-route-router">Router only</button>
+            <button id="preset-route-amm">AMM only</button>
+            <button id="preset-route-rfq">RFQ only</button>
+            <button id="preset-exclude-common">Exclude common (bridge,wrap,uni)</button>
+          </div>
+          <div>
+            <strong>Chain Presets</strong><br/>
+            <button id="preset-chain-mainnet">hyperevm-mainnet</button>
+          </div>
+          <div>
+            <strong>Confidence Presets</strong><br/>
+            <button id="preset-conf-0-5">0.50</button>
+            <button id="preset-conf-0-7">0.70</button>
+            <button id="preset-conf-0-9">0.90</button>
+          </div>
+        </div>
+        <div style="margin-top:6px; display:grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap:8px;">
+          <div>
+            <strong>HFT Presets</strong><br/>
+            <button id="preset-hft-low">Low Gas</button>
+            <button id="preset-hft-balanced">Balanced</button>
+            <button id="preset-hft-agg">Aggressive</button>
+          </div>
+        </div>
+      </div>
+      <div style="margin-top:6px;">
+        <h4>Param Overrides</h4>
+        <label><input type="checkbox" id="override-params" /> Use params below</label>
+        <textarea id="override-json" rows="6" placeholder='{"min_profit_usd":7.5, "min_spread_bps":12, "min_liquidity_usd":20000, "gas_multiplier":1.0, "fees_bps":5, "slippage_bps":30, "max_trade_usd":50000}'></textarea>
+      </div>
+      <details style="margin-top:8px;">
+        <summary><strong>HFT Parameters</strong> (optional)</summary>
+        <div style="display:grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap:8px; margin-top:8px;">
+          <div><label>Base Fee (gwei)</label><input type="number" step="0.1" id="hft-base-fee" placeholder="2" /></div>
+          <div><label>Priority Tip (gwei)</label><input type="number" step="0.1" id="hft-tip" placeholder="0.1" /></div>
+          <div><label>Gas Limit</label><input type="number" step="1" id="hft-gas-limit" placeholder="250000" /></div>
+          <div><label>Native USD</label><input type="number" step="0.01" id="hft-native-usd" placeholder="1.0" /></div>
+          <div><label>Max Gas $/Trade</label><input type="number" step="0.01" id="hft-max-gas" placeholder="100" /></div>
+
+          <div><label>Decision→Submit (ms)</label><input type="number" step="1" id="hft-lat-ms" placeholder="250" /></div>
+          <div><label>Blocks to Inclusion</label><input type="number" step="1" id="hft-lat-blocks" placeholder="1" /></div>
+          <div><label>Sec/Block</label><input type="number" step="0.1" id="hft-lat-spb" placeholder="1.0" /></div>
+          <div><label>k_vol</label><input type="number" step="0.0001" id="hft-kvol" placeholder="0.0" /></div>
+          <div><label>Notional Beta</label><input type="number" step="0.01" id="hft-beta" placeholder="1.0" /></div>
+          <div><label>Fail Probability</label><input type="number" step="0.001" id="hft-fail-prob" placeholder="0.0" min="0" max="1" /></div>
+
+          <div><label>LP Fees (bps)</label><input type="number" step="0.1" id="hft-lp-fees" placeholder="0" /></div>
+          <div><label>Router Fees (bps)</label><input type="number" step="0.1" id="hft-router-fees" placeholder="0" /></div>
+          <div><label>Extra Friction ($)</label><input type="number" step="0.01" id="hft-extra-usd" placeholder="0" /></div>
+          <div><label>Extra Fees (bps)</label><input type="number" step="0.1" id="hft-fees-extra" placeholder="0" /></div>
+
+          <div><label>Slip Cap (bps)</label><input type="number" step="0.1" id="hft-slip-cap" placeholder="30" /></div>
+          <div><label>Notional Cap ($)</label><input type="number" step="1" id="hft-notional-cap" placeholder="50000" /></div>
+        </div>
+      </details>
+      <div style="margin-top:10px;">
+        <h4>Parameter Sweep</h4>
+        <div style="display:grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap:8px; align-items:end;">
+          <div>
+            <label>Min Spread (bps) list</label>
+            <input id="sweep-min-spread" placeholder="8,10,12,15,18,20" />
+          </div>
+          <div>
+            <label>Min Liquidity ($) list</label>
+            <input id="sweep-min-liq" placeholder="10000,20000,30000,50000" />
+          </div>
+          <div>
+            <label>Fees (bps) list</label>
+            <input id="sweep-fees" placeholder="3,5,8,10" />
+          </div>
+          <div>
+            <label>Slippage (bps) list</label>
+            <input id="sweep-slippage" placeholder="20,30,40" />
+          </div>
+          <div>
+            <label>Gas Mult list</label>
+            <input id="sweep-gas-mul" placeholder="0.8,1.0,1.2,1.5" />
+          </div>
+          <div>
+            <label>Min Confidence list</label>
+            <input id="sweep-min-conf" placeholder="0.5,0.6,0.7,0.8" />
+          </div>
+          <div>
+            <label>Extra Fees (bps) list</label>
+            <input id="sweep-fees-extra" placeholder="0,2,5" />
+          </div>
+          <div>
+            <label>Max Runs</label>
+            <input id="sweep-max" type="number" value="30" />
+          </div>
+          <div>
+            <label>Rank By</label>
+            <select id="sweep-rank-by">
+              <option value="total_net_profit" selected>Total Net Profit</option>
+              <option value="winrate">Winrate</option>
+              <option value="sharpe_proxy">Sharpe Proxy</option>
+              <option value="avg_profit_per_gas">Avg Profit/Gas</option>
+              <option value="net_over_dd">Net / (1+Drawdown)</option>
+            </select>
+          </div>
+          <div>
+            <button id="run-sweep">Run Sweep</button>
+          </div>
+          <div>
+            <button id="apply-best-config">Apply Best to Config</button>
+          </div>
+          <div>
+            <button id="apply-best-global">Apply Best (Global)</button>
+          </div>
+        </div>
+        <details style="margin-top:8px;">
+          <summary><strong>Plots (Seaborn)</strong></summary>
+          <div style="display:grid; grid-template-columns: repeat(3, minmax(220px, 1fr)); gap:8px; margin-top:8px;">
+            <div><label><input type="checkbox" id="plots-enable" checked /> Enable Backtest Plots</label></div>
+            <div>
+              <label>Top N</label>
+              <input type="number" id="plots-topn" min="1" max="10" value="10" />
+            </div>
+            <div>
+              <label>Plot Types</label>
+              <div>
+                <label><input type="checkbox" class="plot-type" value="equity_curve" checked/> Equity Curve</label>
+              </div>
+              <div>
+                <label><input type="checkbox" class="plot-type" value="trade_hist" checked/> Trade Histogram</label>
+              </div>
+              <div>
+                <label><input type="checkbox" class="plot-type" value="by_asset_bar" checked/> By-Asset Bar</label>
+              </div>
+              <div>
+                <label><input type="checkbox" class="plot-type" value="by_route_bar" checked/> By-Route Bar</label>
+              </div>
+            </div>
+          </div>
+          <div style="display:flex; gap:8px; flex-wrap:wrap; margin-top:8px;">
+            <button id="plot-preset-all" type="button">All</button>
+            <button id="plot-preset-performance" type="button">Performance</button>
+            <button id="plot-preset-breakdown" type="button">Breakdown</button>
+            <button id="plot-preset-minimal" type="button">Minimal</button>
+            <button id="plot-download" type="button">Download Plots</button>
+          </div>
+        </details>
+        <div id="sweep-results" style="margin-top:8px;"></div>
+      </div>
+      <div>
+        <button id="run-backtest">Run Backtest</button>
+        <button id="ai-analyze">AI Analyze Strategy</button>
+        <label style="margin-left:10px;">Top N Opps:</label>
+        <input type="number" id="backtest-top-opps" min="1" max="200" value="50" style="width:90px;" />
+        <button id="populate-opps-from-backtest" title="Populate Active Opportunities with top trades from the latest backtest">Populate from Backtest</button>
+      </div>
+      <div id="backtest-results"></div>
+      <div id="backtest-plots" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap:10px; margin-top:8px;"></div>
+      <div id="breakdown-by-asset" style="margin-top:8px;"></div>
+      <div id="breakdown-by-route" style="margin-top:8px;"></div>
+      <div id="ai-analysis" style="margin-top:8px;"></div>
+    </div>
+  </div>
+  <script src="app.js?v=2"></script>
+</body>
+</html>
